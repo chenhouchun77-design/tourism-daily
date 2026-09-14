@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>觀光產業看盤日報 ‧ 最新報表</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;padding:60px 20px;background:#f2ede4;color:#1c2330;
+    font-family:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif}
+  .wrap{max-width:520px;margin:0 auto;text-align:center}
+  h1{font-size:22px;letter-spacing:2px;color:#2b3a52;margin:0 0 10px}
+  p{font-size:13px;color:#7a7264;line-height:1.9}
+  a{color:#2b3a52}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>觀光產業看盤日報</h1>
+  <p id="msg">正在開啟最新一期報表…</p>
+</div>
+<script>
+function repoInfo(){
+  const owner = location.hostname.split('.')[0];
+  const seg = location.pathname.split('/').filter(Boolean);
+  const repo = seg.length ? seg[0] : location.hostname;
+  return {owner, repo};
+}
+const {owner, repo} = repoInfo();
+fetch(`https://api.github.com/repos/${owner}/${repo}/contents/reports`, {
+  headers: {'Accept':'application/vnd.github+json'}
+})
+  .then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(list => {
+    const dates = list
+      .filter(f => f.type === 'file' && /^\d{4}-\d{2}-\d{2}\.html$/.test(f.name))
+      .map(f => f.name.slice(0, 10))
+      .sort();
+    if (!dates.length) throw new Error('reports 資料夾是空的');
+    location.replace('reports/' + dates[dates.length - 1] + '.html');
+  })
+  .catch(e => {
+    document.getElementById('msg').innerHTML =
+      '沒辦法自動判斷最新一期（' + e.message + '）。<br>'
+      + '請改從 <a href="history.html">歷史報表</a> 選擇日期。';
+  });
+</script>
+</body>
+</html>

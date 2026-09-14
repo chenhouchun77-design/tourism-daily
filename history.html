@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>觀光產業看盤日報 ‧ 歷史報表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f2ede4;--ink:#1c2330;--navy:#2b3a52;--line:#d9d0be;--muted:#7a7264;--card:#fbf8f2}
+  *{box-sizing:border-box}
+  body{margin:0;padding:28px 20px 48px;background:var(--bg);color:var(--ink);
+    font-family:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif}
+  .wrap{max-width:720px;margin:0 auto}
+  nav{display:flex;gap:8px;margin-bottom:16px}
+  nav a{font-size:13px;padding:6px 14px;text-decoration:none;border-radius:2px;
+    background:var(--card);border:1px solid var(--line);color:var(--navy)}
+  nav a:hover{background:#f5efe4}
+  nav a.on{background:var(--navy);border-color:var(--navy);color:#f2ede4}
+  nav a:focus-visible,ul a:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+  header{border-bottom:2px solid var(--navy);padding-bottom:14px;margin-bottom:20px}
+  h1{font-size:26px;font-weight:700;letter-spacing:2px;margin:0 0 6px;color:var(--navy)}
+  .sub{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--muted);letter-spacing:.5px}
+  ul{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line)}
+  li{border-bottom:1px solid var(--line)}
+  li:last-child{border-bottom:none}
+  ul a{display:flex;align-items:baseline;gap:14px;padding:11px 16px;text-decoration:none;color:var(--ink)}
+  ul a:hover{background:#f5efe4}
+  li:first-child a{box-shadow:inset 3px 0 0 var(--navy)}
+  .dt{font-family:"JetBrains Mono",monospace;font-size:15px;font-weight:700}
+  .wd{font-size:12px;color:var(--muted)}
+  .msg{background:var(--card);border:1px solid var(--line);padding:22px 18px;
+    font-size:13px;line-height:1.8;color:var(--muted)}
+  footer{margin-top:16px;font-size:11px;color:var(--muted);line-height:1.7}
+  @media (max-width:600px){body{padding:18px 12px 36px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav>
+  <a href="index.html">最新報表</a>
+  <a class="on" href="history.html">歷史報表</a>
+</nav>
+
+<header>
+  <h1>歷史報表</h1>
+  <div class="sub" id="sub">讀取中…</div>
+</header>
+
+<div id="out"><div class="msg">正在讀取 reports 資料夾…</div></div>
+
+<footer>
+  清單由 reports 資料夾自動產生，新增報表檔案後重新整理即可出現，不需要另外維護清單。<br>
+  資料來源：臺灣證券交易所 MI_INDEX ／ Google Sheets「STOCK DAILY UPDATE」StockData 分頁。
+</footer>
+
+</div>
+
+<script>
+const RETAIN = 30;
+const WD = ['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
+
+// 從網址推出 owner / repo，換 repo 名稱不用改這支程式
+function repoInfo(){
+  const owner = location.hostname.split('.')[0];
+  const seg = location.pathname.split('/').filter(Boolean);
+  const repo = seg.length ? seg[0] : location.hostname;
+  return {owner, repo};
+}
+
+function weekday(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  return WD[(new Date(Date.UTC(y, m-1, d)).getUTCDay() + 6) % 7];
+}
+
+function show(dates){
+  document.getElementById('sub').textContent =
+    `保留最近 ${RETAIN} 期　｜　目前共 ${dates.length} 期`;
+  document.getElementById('out').innerHTML = '<ul>' + dates.map(d => {
+    const [y,m,dd] = d.split('-');
+    return `<li><a href="reports/${d}.html"><span class="dt">${y}/${m}/${dd}</span>`
+         + `<span class="wd">${weekday(d)}</span></a></li>`;
+  }).join('') + '</ul>';
+}
+
+function fail(extra){
+  document.getElementById('sub').textContent = '清單讀取失敗';
+  document.getElementById('out').innerHTML =
+    '<div class="msg">沒辦法自動列出 reports 資料夾。' + (extra ? '（' + extra + '）' : '')
+    + '<br><br>常見原因：repo 改成了私有；或短時間內重整太多次，被 GitHub 的查詢次數限制擋下，'
+    + '等幾分鐘再試就會恢復。<br><br>報表檔案本身沒事，直接在網址後面加上 '
+    + '<code>reports/年-月-日.html</code> 一樣打得開。</div>';
+}
+
+const {owner, repo} = repoInfo();
+fetch(`https://api.github.com/repos/${owner}/${repo}/contents/reports`, {
+  headers: {'Accept':'application/vnd.github+json'}
+})
+  .then(r => { if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(list => {
+    const dates = list
+      .filter(f => f.type === 'file' && /^\d{4}-\d{2}-\d{2}\.html$/.test(f.name))
+      .map(f => f.name.slice(0, 10))
+      .sort()
+      .reverse()
+      .slice(0, RETAIN);
+    dates.length ? show(dates) : fail('reports 資料夾裡沒有符合 年-月-日.html 的檔案');
+  })
+  .catch(e => fail(e.message));
+</script>
+</body>
+</html>
